@@ -1,431 +1,313 @@
-import { useEffect, useRef, useState } from 'react';
-import { useQuery } from 'react-query';
+import {useEffect, useRef} from 'react';
 
-import { GetServerSideProps } from 'next';
-import { useTranslation } from 'next-i18next';
-import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
+import {GetServerSideProps} from 'next';
+import {useTranslation} from 'next-i18next';
+import {serverSideTranslations} from 'next-i18next/serverSideTranslations';
 import Head from 'next/head';
 
-import { useCreateReducer } from '@/hooks/useCreateReducer';
+import {useCreateReducer} from '@/hooks/useCreateReducer';
 
-import useErrorService from '@/services/errorService';
-import useApiService from '@/services/useApiService';
+import {cleanConversationHistory, cleanSelectedConversation,} from '@/utils/app/clean';
+import {saveConversation, saveConversations, updateConversation,} from '@/utils/app/conversation';
+import {saveFolders} from '@/utils/app/folders';
+import {savePrompts} from '@/utils/app/prompts';
+import {getSettings} from '@/utils/app/settings';
 
-import {
-  cleanConversationHistory,
-  cleanSelectedConversation,
-} from '@/utils/app/clean';
-import { DEFAULT_SYSTEM_PROMPT, DEFAULT_TEMPERATURE } from '@/utils/app/const';
-import {
-  saveConversation,
-  saveConversations,
-  updateConversation,
-} from '@/utils/app/conversation';
-import { saveFolders } from '@/utils/app/folders';
-import { savePrompts } from '@/utils/app/prompts';
-import { getSettings } from '@/utils/app/settings';
+import {Conversation} from '@/types/chat';
+import {KeyValuePair} from '@/types/data';
+import {FolderInterface, FolderType} from '@/types/folder';
+import {Prompt} from '@/types/prompt';
 
-import { Conversation } from '@/types/chat';
-import { KeyValuePair } from '@/types/data';
-import { FolderInterface, FolderType } from '@/types/folder';
-import { OpenAIModelID, OpenAIModels, fallbackModelID } from '@/types/openai';
-import { Prompt } from '@/types/prompt';
-
-import { Chat } from '@/components/Chat/Chat';
-import { Chatbar } from '@/components/Chatbar/Chatbar';
-import { Navbar } from '@/components/Mobile/Navbar';
+import {Chat} from '@/components/Chat/Chat';
+import {Chatbar} from '@/components/Chatbar/Chatbar';
+import {Navbar} from '@/components/Mobile/Navbar';
 import Promptbar from '@/components/Promptbar';
 
 import HomeContext from './home.context';
-import { HomeInitialState, initialState } from './home.state';
+import {HomeInitialState, initialState} from './home.state';
 
-import { v4 as uuidv4 } from 'uuid';
+import {v4 as uuidv4} from 'uuid';
 
-interface Props {
-  serverSideApiKeyIsSet: boolean;
-  serverSidePluginKeysSet: boolean;
-  defaultModelId: OpenAIModelID;
-}
 
-const Home = ({
-  serverSideApiKeyIsSet,
-  serverSidePluginKeysSet,
-  defaultModelId,
-}: Props) => {
-  const { t } = useTranslation('chat');
-  const { getModels } = useApiService();
-  const { getModelsError } = useErrorService();
-  const [initialRender, setInitialRender] = useState<boolean>(true);
+const Home = () => {
+    const {t} = useTranslation('chat');
 
-  const contextValue = useCreateReducer<HomeInitialState>({
-    initialState,
-  });
+    const contextValue = useCreateReducer<HomeInitialState>({
+        initialState,
+    });
 
-  const {
-    state: {
-      apiKey,
-      lightMode,
-      folders,
-      conversations,
-      selectedConversation,
-      prompts,
-      temperature,
-    },
-    dispatch,
-  } = contextValue;
-
-  const stopConversationRef = useRef<boolean>(false);
-
-  const { data, error, refetch } = useQuery(
-    ['GetModels', apiKey, serverSideApiKeyIsSet],
-    ({ signal }) => {
-      if (!apiKey && !serverSideApiKeyIsSet) return null;
-
-      return getModels(
-        {
-          key: apiKey,
+    const {
+        state: {
+            lightMode,
+            folders,
+            conversations,
+            selectedConversation,
+            prompts,
         },
-        signal,
-      );
-    },
-    { enabled: true, refetchOnMount: false },
-  );
+        dispatch,
+    } = contextValue;
 
-  useEffect(() => {
-    if (data) dispatch({ field: 'models', value: data });
-  }, [data, dispatch]);
+    const stopConversationRef = useRef<boolean>(false);
 
-  useEffect(() => {
-    dispatch({ field: 'modelError', value: getModelsError(error) });
-  }, [dispatch, error, getModelsError]);
+    // FETCH MODELS ----------------------------------------------
 
-  // FETCH MODELS ----------------------------------------------
-
-  const handleSelectConversation = (conversation: Conversation) => {
-    dispatch({
-      field: 'selectedConversation',
-      value: conversation,
-    });
-
-    saveConversation(conversation);
-  };
-
-  // FOLDER OPERATIONS  --------------------------------------------
-
-  const handleCreateFolder = (name: string, type: FolderType) => {
-    const newFolder: FolderInterface = {
-      id: uuidv4(),
-      name,
-      type,
+    const handleSelectConversation = (conversation: Conversation) => {
+        console.log("home 1", selectedConversation)
+        dispatch({
+            field: 'selectedConversation',
+            value: conversation,
+        });
+        console.log("home 2", selectedConversation)
+        saveConversation(conversation);
     };
 
-    const updatedFolders = [...folders, newFolder];
+    // FOLDER OPERATIONS  --------------------------------------------
 
-    dispatch({ field: 'folders', value: updatedFolders });
-    saveFolders(updatedFolders);
-  };
-
-  const handleDeleteFolder = (folderId: string) => {
-    const updatedFolders = folders.filter((f) => f.id !== folderId);
-    dispatch({ field: 'folders', value: updatedFolders });
-    saveFolders(updatedFolders);
-
-    const updatedConversations: Conversation[] = conversations.map((c) => {
-      if (c.folderId === folderId) {
-        return {
-          ...c,
-          folderId: null,
+    const handleCreateFolder = (name: string, type: FolderType) => {
+        const newFolder: FolderInterface = {
+            id: uuidv4(),
+            name,
+            type,
         };
-      }
 
-      return c;
-    });
+        const updatedFolders = [...folders, newFolder];
 
-    dispatch({ field: 'conversations', value: updatedConversations });
-    saveConversations(updatedConversations);
-
-    const updatedPrompts: Prompt[] = prompts.map((p) => {
-      if (p.folderId === folderId) {
-        return {
-          ...p,
-          folderId: null,
-        };
-      }
-
-      return p;
-    });
-
-    dispatch({ field: 'prompts', value: updatedPrompts });
-    savePrompts(updatedPrompts);
-  };
-
-  const handleUpdateFolder = (folderId: string, name: string) => {
-    const updatedFolders = folders.map((f) => {
-      if (f.id === folderId) {
-        return {
-          ...f,
-          name,
-        };
-      }
-
-      return f;
-    });
-
-    dispatch({ field: 'folders', value: updatedFolders });
-
-    saveFolders(updatedFolders);
-  };
-
-  // CONVERSATION OPERATIONS  --------------------------------------------
-
-  const handleNewConversation = () => {
-    const lastConversation = conversations[conversations.length - 1];
-
-    const newConversation: Conversation = {
-      id: uuidv4(),
-      name: t('New Conversation'),
-      messages: [],
-      model: lastConversation?.model || {
-        id: OpenAIModels[defaultModelId].id,
-        name: OpenAIModels[defaultModelId].name,
-        maxLength: OpenAIModels[defaultModelId].maxLength,
-        tokenLimit: OpenAIModels[defaultModelId].tokenLimit,
-      },
-      prompt: DEFAULT_SYSTEM_PROMPT,
-      temperature: lastConversation?.temperature ?? DEFAULT_TEMPERATURE,
-      folderId: null,
+        dispatch({field: 'folders', value: updatedFolders});
+        saveFolders(updatedFolders);
     };
 
-    const updatedConversations = [...conversations, newConversation];
+    const handleDeleteFolder = (folderId: string) => {
+        const updatedFolders = folders.filter((f) => f.id !== folderId);
+        dispatch({field: 'folders', value: updatedFolders});
+        saveFolders(updatedFolders);
 
-    dispatch({ field: 'selectedConversation', value: newConversation });
-    dispatch({ field: 'conversations', value: updatedConversations });
+        const updatedConversations: Conversation[] = conversations.map((c) => {
+            if (c.folderId === folderId) {
+                return {
+                    ...c,
+                    folderId: null,
+                };
+            }
 
-    saveConversation(newConversation);
-    saveConversations(updatedConversations);
+            return c;
+        });
 
-    dispatch({ field: 'loading', value: false });
-  };
+        dispatch({field: 'conversations', value: updatedConversations});
+        saveConversations(updatedConversations);
 
-  const handleUpdateConversation = (
-    conversation: Conversation,
-    data: KeyValuePair,
-  ) => {
-    const updatedConversation = {
-      ...conversation,
-      [data.key]: data.value,
+        const updatedPrompts: Prompt[] = prompts.map((p) => {
+            if (p.folderId === folderId) {
+                return {
+                    ...p,
+                    folderId: null,
+                };
+            }
+
+            return p;
+        });
+
+        dispatch({field: 'prompts', value: updatedPrompts});
+        savePrompts(updatedPrompts);
     };
 
-    const { single, all } = updateConversation(
-      updatedConversation,
-      conversations,
-    );
+    const handleUpdateFolder = (folderId: string, name: string) => {
+        const updatedFolders = folders.map((f) => {
+            if (f.id === folderId) {
+                return {
+                    ...f,
+                    name,
+                };
+            }
 
-    dispatch({ field: 'selectedConversation', value: single });
-    dispatch({ field: 'conversations', value: all });
-  };
+            return f;
+        });
 
-  // EFFECTS  --------------------------------------------
+        dispatch({field: 'folders', value: updatedFolders});
 
-  useEffect(() => {
-    if (window.innerWidth < 640) {
-      dispatch({ field: 'showChatbar', value: false });
-    }
-  }, [selectedConversation]);
+        saveFolders(updatedFolders);
+    };
 
-  useEffect(() => {
-    defaultModelId &&
-      dispatch({ field: 'defaultModelId', value: defaultModelId });
-    serverSideApiKeyIsSet &&
-      dispatch({
-        field: 'serverSideApiKeyIsSet',
-        value: serverSideApiKeyIsSet,
-      });
-    serverSidePluginKeysSet &&
-      dispatch({
-        field: 'serverSidePluginKeysSet',
-        value: serverSidePluginKeysSet,
-      });
-  }, [defaultModelId, serverSideApiKeyIsSet, serverSidePluginKeysSet]);
+    // CONVERSATION OPERATIONS  --------------------------------------------
 
-  // ON LOAD --------------------------------------------
+    const handleNewConversation = () => {
+        const newConversation: Conversation = {
+            id: uuidv4(),
+            name: t('New Conversation'),
+            messages: [],
+            folderId: null,
+        };
 
-  useEffect(() => {
-    const settings = getSettings();
-    if (settings.theme) {
-      dispatch({
-        field: 'lightMode',
-        value: settings.theme,
-      });
-    }
+        const updatedConversations = [...conversations, newConversation];
 
-    const apiKey = localStorage.getItem('apiKey');
+        dispatch({field: 'selectedConversation', value: newConversation});
+        dispatch({field: 'conversations', value: updatedConversations});
 
-    if (serverSideApiKeyIsSet) {
-      dispatch({ field: 'apiKey', value: '' });
+        saveConversation(newConversation);
+        saveConversations(updatedConversations);
 
-      localStorage.removeItem('apiKey');
-    } else if (apiKey) {
-      dispatch({ field: 'apiKey', value: apiKey });
-    }
+        dispatch({field: 'loading', value: false});
+    };
 
-    const pluginKeys = localStorage.getItem('pluginKeys');
-    if (serverSidePluginKeysSet) {
-      dispatch({ field: 'pluginKeys', value: [] });
-      localStorage.removeItem('pluginKeys');
-    } else if (pluginKeys) {
-      dispatch({ field: 'pluginKeys', value: pluginKeys });
-    }
+    const handleUpdateConversation = (
+        conversation: Conversation,
+        data: KeyValuePair,
+    ) => {
+        const updatedConversation = {
+            ...conversation,
+            [data.key]: data.value,
+        };
 
-    if (window.innerWidth < 640) {
-      dispatch({ field: 'showChatbar', value: false });
-      dispatch({ field: 'showPromptbar', value: false });
-    }
+        const {single, all} = updateConversation(
+            updatedConversation,
+            conversations,
+        );
+        console.log("home 3", selectedConversation)
+        dispatch({field: 'selectedConversation', value: single});
+        console.log("home 4", selectedConversation)
+        dispatch({field: 'conversations', value: all});
+    };
 
-    const showChatbar = localStorage.getItem('showChatbar');
-    if (showChatbar) {
-      dispatch({ field: 'showChatbar', value: showChatbar === 'true' });
-    }
+    // EFFECTS  --------------------------------------------
 
-    const showPromptbar = localStorage.getItem('showPromptbar');
-    if (showPromptbar) {
-      dispatch({ field: 'showPromptbar', value: showPromptbar === 'true' });
-    }
+    useEffect(() => {
+        if (window.innerWidth < 640) {
+            dispatch({field: 'showChatbar', value: false});
+        }
+    }, [selectedConversation]);
 
-    const folders = localStorage.getItem('folders');
-    if (folders) {
-      dispatch({ field: 'folders', value: JSON.parse(folders) });
-    }
+    // ON LOAD --------------------------------------------
 
-    const prompts = localStorage.getItem('prompts');
-    if (prompts) {
-      dispatch({ field: 'prompts', value: JSON.parse(prompts) });
-    }
+    useEffect(() => {
+        const settings = getSettings();
+        if (settings.theme) {
+            dispatch({
+                field: 'lightMode',
+                value: settings.theme,
+            });
+        }
 
-    const conversationHistory = localStorage.getItem('conversationHistory');
-    if (conversationHistory) {
-      const parsedConversationHistory: Conversation[] =
-        JSON.parse(conversationHistory);
-      const cleanedConversationHistory = cleanConversationHistory(
-        parsedConversationHistory,
-      );
+        if (window.innerWidth < 640) {
+            dispatch({field: 'showChatbar', value: false});
+            dispatch({field: 'showPromptbar', value: false});
+        }
 
-      dispatch({ field: 'conversations', value: cleanedConversationHistory });
-    }
+        const showChatbar = localStorage.getItem('showChatbar');
+        if (showChatbar) {
+            dispatch({field: 'showChatbar', value: showChatbar === 'true'});
+        }
 
-    const selectedConversation = localStorage.getItem('selectedConversation');
-    if (selectedConversation) {
-      const parsedSelectedConversation: Conversation =
-        JSON.parse(selectedConversation);
-      const cleanedSelectedConversation = cleanSelectedConversation(
-        parsedSelectedConversation,
-      );
+        const showPromptbar = localStorage.getItem('showPromptbar');
+        if (showPromptbar) {
+            dispatch({field: 'showPromptbar', value: showPromptbar === 'true'});
+        }
 
-      dispatch({
-        field: 'selectedConversation',
-        value: cleanedSelectedConversation,
-      });
-    } else {
-      const lastConversation = conversations[conversations.length - 1];
-      dispatch({
-        field: 'selectedConversation',
-        value: {
-          id: uuidv4(),
-          name: t('New Conversation'),
-          messages: [],
-          model: OpenAIModels[defaultModelId],
-          prompt: DEFAULT_SYSTEM_PROMPT,
-          temperature: lastConversation?.temperature ?? DEFAULT_TEMPERATURE,
-          folderId: null,
-        },
-      });
-    }
-  }, [
-    defaultModelId,
-    dispatch,
-    serverSideApiKeyIsSet,
-    serverSidePluginKeysSet,
-  ]);
+        const folders = localStorage.getItem('folders');
+        if (folders) {
+            dispatch({field: 'folders', value: JSON.parse(folders)});
+        }
 
-  return (
-    <HomeContext.Provider
-      value={{
-        ...contextValue,
-        handleNewConversation,
-        handleCreateFolder,
-        handleDeleteFolder,
-        handleUpdateFolder,
-        handleSelectConversation,
-        handleUpdateConversation,
-      }}
-    >
-      <Head>
-        <title>Chatbot UI</title>
-        <meta name="description" content="ChatGPT but better." />
-        <meta
-          name="viewport"
-          content="height=device-height ,width=device-width, initial-scale=1, user-scalable=no"
-        />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      {selectedConversation && (
-        <main
-          className={`flex h-screen w-screen flex-col text-sm text-white dark:text-white ${lightMode}`}
+        const prompts = localStorage.getItem('prompts');
+        if (prompts) {
+            dispatch({field: 'prompts', value: JSON.parse(prompts)});
+        }
+
+        const conversationHistory = localStorage.getItem('conversationHistory');
+        if (conversationHistory) {
+            const parsedConversationHistory: Conversation[] =
+                JSON.parse(conversationHistory);
+            const cleanedConversationHistory = cleanConversationHistory(
+                parsedConversationHistory,
+            );
+
+            dispatch({field: 'conversations', value: cleanedConversationHistory});
+        }
+
+        const selectedConversation = localStorage.getItem('selectedConversation');
+        if (selectedConversation) {
+            const parsedSelectedConversation: Conversation =
+                JSON.parse(selectedConversation);
+            const cleanedSelectedConversation = cleanSelectedConversation(
+                parsedSelectedConversation,
+            );
+
+            dispatch({
+                field: 'selectedConversation',
+                value: cleanedSelectedConversation,
+            });
+        } else {
+            dispatch({
+                field: 'selectedConversation',
+                value: {
+                    id: uuidv4(),
+                    name: t('New Conversation'),
+                    messages: [],
+                    folderId: null,
+                },
+            });
+        }
+    }, [
+        dispatch,
+    ]);
+
+    return (
+        <HomeContext.Provider
+            value={{
+                ...contextValue,
+                handleNewConversation,
+                handleCreateFolder,
+                handleDeleteFolder,
+                handleUpdateFolder,
+                handleSelectConversation,
+                handleUpdateConversation,
+            }}
         >
-          <div className="fixed top-0 w-full sm:hidden">
-            <Navbar
-              selectedConversation={selectedConversation}
-              onNewConversation={handleNewConversation}
-            />
-          </div>
+            <Head>
+                <title>Chatbot UI</title>
+                <meta name="description" content="ChatGPT but better."/>
+                <meta
+                    name="viewport"
+                    content="height=device-height ,width=device-width, initial-scale=1, user-scalable=no"
+                />
+                <link rel="icon" href="/favicon.ico"/>
+            </Head>
+            {selectedConversation && (
+                <main
+                    className={`flex h-screen w-screen flex-col text-sm text-white dark:text-white ${lightMode}`}
+                >
+                    <div className="fixed top-0 w-full sm:hidden">
+                        <Navbar
+                            selectedConversation={selectedConversation}
+                            onNewConversation={handleNewConversation}
+                        />
+                    </div>
 
-          <div className="flex h-full w-full pt-[48px] sm:pt-0">
-            <Chatbar />
+                    <div className="flex h-full w-full pt-[48px] sm:pt-0">
+                        <Chatbar/>
 
-            <div className="flex flex-1">
-              <Chat stopConversationRef={stopConversationRef} />
-            </div>
+                        <div className="flex flex-1">
+                            <Chat stopConversationRef={stopConversationRef}/>
+                        </div>
 
-            <Promptbar />
-          </div>
-        </main>
-      )}
-    </HomeContext.Provider>
-  );
+                        <Promptbar/>
+                    </div>
+                </main>
+            )}
+        </HomeContext.Provider>
+    );
 };
 export default Home;
 
-export const getServerSideProps: GetServerSideProps = async ({ locale }) => {
-  const defaultModelId =
-    (process.env.DEFAULT_MODEL &&
-      Object.values(OpenAIModelID).includes(
-        process.env.DEFAULT_MODEL as OpenAIModelID,
-      ) &&
-      process.env.DEFAULT_MODEL) ||
-    fallbackModelID;
-
-  let serverSidePluginKeysSet = false;
-
-  const googleApiKey = process.env.GOOGLE_API_KEY;
-  const googleCSEId = process.env.GOOGLE_CSE_ID;
-
-  if (googleApiKey && googleCSEId) {
-    serverSidePluginKeysSet = true;
-  }
-
-  return {
-    props: {
-      serverSideApiKeyIsSet: !!process.env.OPENAI_API_KEY,
-      defaultModelId,
-      serverSidePluginKeysSet,
-      ...(await serverSideTranslations(locale ?? 'en', [
-        'common',
-        'chat',
-        'sidebar',
-        'markdown',
-        'promptbar',
-        'settings',
-      ])),
-    },
-  };
+export const getServerSideProps: GetServerSideProps = async ({locale}) => {
+    return {
+        props: {
+            ...(await serverSideTranslations(locale ?? 'en', [
+                'common',
+                'chat',
+                'sidebar',
+                'markdown',
+                'promptbar',
+                'settings',
+            ])),
+        },
+    };
 };
