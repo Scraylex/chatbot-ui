@@ -54,6 +54,7 @@ const Sidebar = <T,>({
     e.target.style.background = 'none';
   };
 
+
   return isOpen ? (
     <div>
       <div

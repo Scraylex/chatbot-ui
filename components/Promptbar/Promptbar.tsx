@@ -5,7 +5,6 @@ import {useCreateReducer} from '@/hooks/useCreateReducer';
 
 import {savePrompts} from '@/utils/app/prompts';
 
-import {OpenAIModels} from '@/types/openai';
 import {Prompt} from '@/types/prompt';
 
 import HomeContext from '@/pages/api/home/home.context';

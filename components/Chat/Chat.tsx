@@ -1,6 +1,9 @@
 import {IconClearAll, IconSettings} from '@tabler/icons-react';
 import {memo, MutableRefObject, useCallback, useContext, useEffect, useRef, useState,} from 'react';
 import toast from 'react-hot-toast';
+import Image from 'next/image';
+import logoImage from "/public/DS_WISER_Logo_RZ-RGB-1-Colors.png"; // Update the path accordingly
+import logoImage2 from "/public/HSG_logo.png"; // Update the path accordingly
 
 import {useTranslation} from 'next-i18next';
 
@@ -276,7 +279,7 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                             <div
                                 className="mx-auto flex flex-col space-y-5 md:space-y-10 px-3 pt-5 md:pt-12 sm:max-w-[600px]">
                                 <div className="text-center text-3xl font-semibold text-gray-800 dark:text-gray-100">
-                                    {'Chatbot UI'}
+                                    {'EcoBot UI'}
                                 </div>
                             </div>
                         </>
@@ -343,6 +346,13 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                     showScrollDownButton={showScrollDownButton}
                 />
             </>
+            {/* Logos at the bottom left */}
+            <div className="absolute bottom-0 left-0 p-4 flex flex-col items-start" style={{ paddingBottom: '20px' }}>
+                <Image src={logoImage2} alt="Logo" width={100} height={100} />
+            </div>
+            <div className="absolute bottom-0 right-0 p-4 flex flex-col items-start" style={{ paddingBottom: '30px' }}>
+                <Image src={logoImage} alt="Logo" width={200} height={200} />
+            </div>
         </div>
     );
 });

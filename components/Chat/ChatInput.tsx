@@ -337,7 +337,15 @@ export const ChatInput = ({
         </a>
         .{' '}
         {t(
-          "Chatbot UI is an advanced chatbot kit for OpenAI's chat models aiming to mimic ChatGPT's interface and functionality.",
+          "EcoBot is an advanced chatbot which searches through WISER to find the best exchange to your question."
+        )}
+        <br></br>
+        {t(
+            "IMP: Towards an integrated Semantic Approach to GHG Accounting"
+        )}
+        <br></br>
+        {t(
+            "University of St. Gallen | HSG | School of Computer Science"
         )}
       </div>
     </div>
