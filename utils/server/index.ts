@@ -16,17 +16,33 @@ export class OpenAIError extends Error {
     }
 }
 
+const appendMessagesUntilLimit = (messages: Message[], byteLimit=3500): string => {
+    let accumulated = "";
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const newMessage = messages[i].content;
+        const testAccumulated = accumulated + (accumulated.length == 0 ? "" : "\n")  + newMessage;
+        const byteLength = new TextEncoder().encode(testAccumulated).length;
+        if (byteLength > byteLimit) {
+            break;
+        }
+        accumulated = testAccumulated;
+    }
+    return accumulated;
+}
+
 export const OpenAIStream = async (
     messages: Message[],
 ) => {
-    let url = `${QUERY_HOST}/api/query`;
+    const url = `${QUERY_HOST}/api/query`;
+
+    const messageBodies = appendMessagesUntilLimit(messages);
     const res = await fetch(url, {
         headers: {
             'Content-Type': 'application/json'
         },
         method: 'POST',
         body: JSON.stringify({
-            query: messages.map(elem => elem.content).join("\n"),
+            query: messageBodies,
         }),
     });
 
@@ -49,13 +65,11 @@ export const OpenAIStream = async (
             );
         }
     }
-    const answer = JSON.parse(result.answer).answer;
-
     return new ReadableStream({
         start(controller) {
             try {
                 const encoder = new TextEncoder();
-                const queue = encoder.encode(answer);
+                const queue = encoder.encode(result.answer);
                 controller.enqueue(queue);
                 controller.close();
             } catch (e) {
