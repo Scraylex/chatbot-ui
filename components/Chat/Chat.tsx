@@ -91,7 +91,9 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                     toast.error(response.statusText);
                     return;
                 }
+                console.log(response)
                 const data = response.body;
+                console.log(data)
                 if (!data) {
                     homeDispatch({field: 'loading', value: false});
                     homeDispatch({field: 'messageIsStreaming', value: false});
@@ -121,6 +123,7 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                     const {value, done: doneReading} = await reader.read();
                     done = doneReading;
                     const chunkValue = decoder.decode(value);
+                    console.log(chunkValue.toString())
                     text += chunkValue;
                     if (isFirst) {
                         isFirst = false;
@@ -334,13 +337,11 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                     onSend={(message) => {
                         setCurrentMessage(message);
                         handleSend(message, 0);
-                        console.log("5", selectedConversation)
                     }}
                     onScrollDownClick={handleScrollDown}
                     onRegenerate={() => {
                         if (currentMessage) {
                             handleSend(currentMessage, 2);
-                            console.log("6", selectedConversation)
                         }
                     }}
                     showScrollDownButton={showScrollDownButton}
