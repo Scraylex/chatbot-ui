@@ -70,8 +70,13 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                 });
                 homeDispatch({field: 'loading', value: true});
                 homeDispatch({field: 'messageIsStreaming', value: true});
+                let toSend: Message[] = []
+                if (updatedConversation.messages.length > 0) {
+                    const last = updatedConversation.messages.pop() as Message
+                    toSend.push(last)
+                }
                 const chatBody: ChatBody = {
-                    messages: updatedConversation.messages,
+                    messages: toSend,
                 };
                 const endpoint = getEndpoint();
                 let body;
