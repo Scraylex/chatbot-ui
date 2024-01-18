@@ -4,11 +4,10 @@ import toast from 'react-hot-toast';
 import Image from 'next/image';
 import logoImage from "/public/DS_WISER_Logo_RZ-RGB-1-Colors.png"; // Update the path accordingly
 import logoImage2 from "/public/HSG_logo.png"; // Update the path accordingly
-
 import {useTranslation} from 'next-i18next';
 
 import {getEndpoint} from '@/utils/app/api';
-import {saveConversation, saveConversations, updateConversation,} from '@/utils/app/conversation';
+import {saveConversation, saveConversations,} from '@/utils/app/conversation';
 import {throttle} from '@/utils/data/throttle';
 
 import {ChatBody, Conversation, Message} from '@/types/chat';
@@ -44,6 +43,17 @@ export const Chat = memo(({stopConversationRef}: Props) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const createChatBodyToSend = (updatedConversation: Conversation) => {
+        let messagesToSend: Message[] = []
+        if (updatedConversation.messages.length > 0) {
+            const last = updatedConversation.messages[updatedConversation.messages.length - 1]
+            messagesToSend.push(last)
+        }
+        const chatBodyToSend: ChatBody = {
+            messages: messagesToSend,
+        };
+        return chatBodyToSend;
+    }
 
     const handleSend = useCallback(
         async (message: Message, deleteCount = 0) => {
@@ -70,17 +80,10 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                 });
                 homeDispatch({field: 'loading', value: true});
                 homeDispatch({field: 'messageIsStreaming', value: true});
-                let toSend: Message[] = []
-                if (updatedConversation.messages.length > 0) {
-                    const last = updatedConversation.messages.pop() as Message
-                    toSend.push(last)
-                }
-                const chatBody: ChatBody = {
-                    messages: toSend,
-                };
+                const chatBodyToSend = createChatBodyToSend(updatedConversation);
                 const endpoint = getEndpoint();
                 let body;
-                body = JSON.stringify(chatBody);
+                body = JSON.stringify(chatBodyToSend);
                 const controller = new AbortController();
                 const response = await fetch(endpoint, {
                     method: 'POST',
@@ -96,9 +99,7 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                     toast.error(response.statusText);
                     return;
                 }
-                console.log(response)
                 const data = response.body;
-                console.log(data)
                 if (!data) {
                     homeDispatch({field: 'loading', value: false});
                     homeDispatch({field: 'messageIsStreaming', value: false});
@@ -120,7 +121,7 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                 let isFirst = true;
                 let text = '';
                 while (!done) {
-                    if (stopConversationRef.current === true) {
+                    if (stopConversationRef.current) {
                         controller.abort();
                         done = true;
                         break;
@@ -128,7 +129,6 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                     const {value, done: doneReading} = await reader.read();
                     done = doneReading;
                     const chunkValue = decoder.decode(value);
-                    console.log(chunkValue.toString())
                     text += chunkValue;
                     if (isFirst) {
                         isFirst = false;
@@ -321,7 +321,6 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                                             editedMessage,
                                             selectedConversation?.messages.length - index,
                                         );
-                                        console.log("4", selectedConversation)
                                     }}
                                 />
                             ))}
@@ -353,11 +352,11 @@ export const Chat = memo(({stopConversationRef}: Props) => {
                 />
             </>
             {/* Logos at the bottom left */}
-            <div className="absolute bottom-0 left-0 p-4 flex flex-col items-start" style={{ paddingBottom: '20px' }}>
-                <Image src={logoImage2} alt="Logo" width={100} height={100} />
+            <div className="absolute bottom-0 left-0 p-4 flex flex-col items-start" style={{paddingBottom: '20px'}}>
+                <Image src={logoImage2} alt="Logo" width={100} height={100}/>
             </div>
-            <div className="absolute bottom-0 right-0 p-4 flex flex-col items-start" style={{ paddingBottom: '30px' }}>
-                <Image src={logoImage} alt="Logo" width={200} height={200} />
+            <div className="absolute bottom-0 right-0 p-4 flex flex-col items-start" style={{paddingBottom: '30px'}}>
+                <Image src={logoImage} alt="Logo" width={200} height={200}/>
             </div>
         </div>
     );

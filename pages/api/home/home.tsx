@@ -52,12 +52,10 @@ const Home = () => {
     // FETCH MODELS ----------------------------------------------
 
     const handleSelectConversation = (conversation: Conversation) => {
-        console.log("home 1", selectedConversation)
         dispatch({
             field: 'selectedConversation',
             value: conversation,
         });
-        console.log("home 2", selectedConversation)
         saveConversation(conversation);
     };
 
@@ -161,9 +159,7 @@ const Home = () => {
             updatedConversation,
             conversations,
         );
-        console.log("home 3", selectedConversation)
         dispatch({field: 'selectedConversation', value: single});
-        console.log("home 4", selectedConversation)
         dispatch({field: 'conversations', value: all});
     };
 
